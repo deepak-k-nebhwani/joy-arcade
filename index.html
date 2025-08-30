@@ -1,307 +1,308 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
   <title>Flappy Fish</title>
   <style>
     body {
       margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       background: linear-gradient(to bottom, #4facfe, #00f2fe);
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      background: #87CEEB;
+      display: block;
+      border: 2px solid #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      font-family: Arial, sans-serif;
-      color: white;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    #gameCanvas {
-      background: linear-gradient(to bottom, #4facfe, #00f2fe);
-      border: 3px solid #fff;
-      border-radius: 12px;
-      box-shadow: 0px 0px 20px rgba(0,0,0,0.3);
-      display: block;
-    }
-
-    #ui {
-      margin-top: 10px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      background: #ff9800;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      background: #e68900;
-    }
-
-    #adBanner {
-      margin-top: 10px;
-      width: 320px;
-      height: 50px;
-      background: #ccc;
-      color: #333;
-      display: flex;
       justify-content: center;
       align-items: center;
-      border-radius: 8px;
+      color: #fff;
+      text-shadow: 2px 2px 4px #000;
+      font-size: 2em;
     }
-
-    #interstitial {
+    .hidden {
       display: none;
-      position: fixed;
+    }
+    #scoreBoard {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2em;
+      color: #fff;
+      text-shadow: 2px 2px 4px #000;
+    }
+    #pauseBtn, #audioBtn {
+      position: absolute;
+      top: 10px;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    #pauseBtn {
+      left: 10px;
+    }
+    #audioBtn {
+      right: 10px;
+    }
+    #adBanner {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 50px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #interstitial {
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       background: rgba(0,0,0,0.8);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      color: white;
-      font-size: 24px;
-      flex-direction: column;
-      z-index: 1000;
+      font-size: 2em;
+      z-index: 10;
     }
-
     #interstitial button {
       margin-top: 20px;
-      background: #4caf50;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="360" height="480"></canvas>
-
-  <div id="ui">
-    <button onclick="toggleSound()">🔊 Sound</button>
-    <button onclick="pauseGame()">⏸ Pause</button>
-    <button onclick="resumeGame()">▶ Resume</button>
+  <canvas id="gameCanvas" width="320" height="480"></canvas>
+  
+  <div id="overlay">
+    <div id="startScreen">
+      <h1>Flappy Fish</h1>
+      <p>Click to Swim</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+    <div id="gameOverScreen" class="hidden">
+      <h1>Game Over</h1>
+      <p id="finalScore"></p>
+      <p id="bestScore"></p>
+      <button onclick="startGame()">Restart</button>
+    </div>
   </div>
-
-  <div id="adBanner">Ad Banner</div>
-
-  <div id="interstitial">
+  
+  <div id="scoreBoard" class="hidden">0</div>
+  
+  <button id="pauseBtn" class="hidden" onclick="togglePause()">Pause</button>
+  <button id="audioBtn" class="hidden" onclick="toggleAudio()">🔊</button>
+  
+  <div id="adBanner">Ad Banner Placeholder</div>
+  <div id="interstitial" class="hidden">
     <div>Interstitial Ad</div>
-    <button onclick="closeAd()">Close</button>
+    <button onclick="closeInterstitial()">Close</button>
   </div>
-
+  
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+    const overlay = document.getElementById("overlay");
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const finalScoreText = document.getElementById("finalScore");
+    const bestScoreText = document.getElementById("bestScore");
+    const scoreBoard = document.getElementById("scoreBoard");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const audioBtn = document.getElementById("audioBtn");
+    const interstitial = document.getElementById("interstitial");
 
-    let isSoundOn = true;
-    let isPaused = false;
+    let fish, pipes, score, bestScore = 0;
+    let gameInterval, gravity, isPaused, audioEnabled = true;
+    let bubbleParticles = [];
 
-    const DPR = window.devicePixelRatio || 1;
-    canvas.width = 360 * DPR;
-    canvas.height = 480 * DPR;
-    ctx.scale(DPR, DPR);
+    // DPR scaling
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = 320 * dpr;
+      canvas.height = 480 * dpr;
+      canvas.style.width = "320px";
+      canvas.style.height = "480px";
+      ctx.scale(dpr, dpr);
+    }
+    resizeCanvas();
 
-    let frames = 0;
-    const DEGREE = Math.PI / 180;
-
-    const sprite = new Image();
-    // sprite.src = "fish-sprite.png"; // optional image
-
-    let score = 0;
-    let best = localStorage.getItem("bestScore") || 0;
-
-    let pipes = [];
-    const gap = 90;
-    const pipeWidth = 50;
-    const pipeHeight = 300;
-    let pipeSpeed = 2;
-
-    const fish = {
-      x: 50,
-      y: 150,
-      radius: 15,
-      gravity: 0.25,
-      jump: 4.6,
-      velocity: 0,
-      draw() {
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.3)";
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = "#FFD700";
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.restore();
-
-        ctx.fillStyle = "white";
-        ctx.beginPath();
-        ctx.arc(this.x + 6, this.y - 3, 5, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.fillStyle = "black";
-        ctx.beginPath();
-        ctx.arc(this.x + 7, this.y - 3, 2, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.fillStyle = "#FF4500";
-        ctx.beginPath();
-        ctx.moveTo(this.x - this.radius, this.y);
-        ctx.lineTo(this.x - this.radius - 10, this.y - 10);
-        ctx.lineTo(this.x - this.radius - 10, this.y + 10);
-        ctx.closePath();
-        ctx.fill();
-      },
-      flap() {
-        this.velocity = -this.jump;
-        if (isSoundOn) beep(200, 0.05);
-      },
-      update() {
-        if (!isPaused) {
-          this.velocity += this.gravity;
-          this.y += this.velocity;
-        }
-      },
-      reset() {
-        this.y = 150;
-        this.velocity = 0;
-      }
-    };
-
-    function beep(frequency, duration) {
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.type = "square";
-        oscillator.frequency.value = frequency;
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + duration);
-
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      } catch (e) {
-        console.log("Web Audio not supported");
-      }
+    function startGame() {
+      fish = {
+        x: 50,
+        y: 150,
+        width: 30,
+        height: 30,
+        velocity: 0
+      };
+      pipes = [];
+      score = 0;
+      gravity = 0.5;
+      isPaused = false;
+      overlay.classList.add("hidden");
+      startScreen.classList.add("hidden");
+      gameOverScreen.classList.add("hidden");
+      scoreBoard.classList.remove("hidden");
+      pauseBtn.classList.remove("hidden");
+      audioBtn.classList.remove("hidden");
+      scoreBoard.textContent = score;
+      gameInterval = setInterval(update, 20);
     }
 
-    function drawBackground() {
-      ctx.fillStyle = "#4facfe";
+    function update() {
+      if (isPaused) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw background
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, "#4facfe");
+      gradient.addColorStop(1, "#00f2fe");
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = "rgba(255,255,255,0.3)";
-      for (let i = 0; i < 30; i++) {
+      // Fish physics
+      fish.velocity += gravity;
+      fish.y += fish.velocity;
+      if (fish.y + fish.height > canvas.height / (window.devicePixelRatio || 1)) {
+        gameOver();
+      }
+
+      // Fish drawing
+      ctx.fillStyle = "orange";
+      ctx.beginPath();
+      ctx.ellipse(fish.x, fish.y, fish.width/2, fish.height/2, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      // Bubbles
+      if (Math.random() < 0.05) {
+        bubbleParticles.push({x: fish.x, y: fish.y, radius: 3, alpha: 1});
+      }
+      bubbleParticles.forEach(bubble => {
+        bubble.y -= 1;
+        bubble.alpha -= 0.01;
+        ctx.fillStyle = `rgba(255,255,255,${bubble.alpha})`;
         ctx.beginPath();
-        ctx.arc(
-          Math.random() * canvas.width / DPR,
-          Math.random() * canvas.height / DPR,
-          Math.random() * 3,
-          0,
-          2 * Math.PI
-        );
+        ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI*2);
         ctx.fill();
-      }
-    }
-
-    function drawPipes() {
-      ctx.fillStyle = "#2E8B57";
-      pipes.forEach(pipe => {
-        ctx.fillRect(pipe.x, pipe.y, pipeWidth, pipeHeight);
-        ctx.fillRect(pipe.x, pipe.y + pipeHeight + gap, pipeWidth, canvas.height);
       });
-    }
+      bubbleParticles = bubbleParticles.filter(b => b.alpha > 0);
 
-    function updatePipes() {
-      if (frames % 100 === 0) {
-        let y = -Math.floor(Math.random() * pipeHeight);
-        pipes.push({ x: canvas.width / DPR, y });
+      // Pipes
+      if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width/2/(window.devicePixelRatio||1)) {
+        const gap = 100;
+        const topHeight = Math.random() * (canvas.height/(window.devicePixelRatio||1) - gap - 50) + 20;
+        pipes.push({
+          x: canvas.width/(window.devicePixelRatio||1),
+          topHeight: topHeight,
+          bottomY: topHeight + gap
+        });
       }
-      pipes.forEach(pipe => {
-        pipe.x -= pipeSpeed;
-        if (pipe.x + pipeWidth < 0) pipes.shift();
 
-        if (
-          fish.x + fish.radius > pipe.x &&
-          fish.x - fish.radius < pipe.x + pipeWidth &&
-          (fish.y - fish.radius < pipe.y + pipeHeight ||
-            fish.y + fish.radius > pipe.y + pipeHeight + gap)
-        ) {
+      pipes.forEach(pipe => {
+        pipe.x -= 2;
+        ctx.fillStyle = "green";
+        ctx.fillRect(pipe.x, 0, 40, pipe.topHeight);
+        ctx.fillRect(pipe.x, pipe.bottomY, 40, canvas.height/(window.devicePixelRatio||1) - pipe.bottomY);
+        if (fish.x < pipe.x + 40 && fish.x + fish.width > pipe.x &&
+            (fish.y < pipe.topHeight || fish.y + fish.height > pipe.bottomY)) {
           gameOver();
         }
-
-        if (pipe.x + pipeWidth === Math.floor(fish.x)) {
+        if (!pipe.scored && pipe.x + 40 < fish.x) {
           score++;
-          if (isSoundOn) beep(600, 0.1);
-          best = Math.max(score, best);
-          localStorage.setItem("bestScore", best);
+          scoreBoard.textContent = score;
+          pipe.scored = true;
+          if (audioEnabled) playBeep(880, 150);
         }
       });
+      pipes = pipes.filter(p => p.x > -40);
     }
 
-    function drawScore() {
-      ctx.fillStyle = "white";
-      ctx.font = "24px Arial";
-      ctx.fillText("Score: " + score, 10, 30);
-      ctx.fillText("Best: " + best, 10, 60);
+    function swim() {
+      if (!gameInterval) return;
+      fish.velocity = -8;
+      if (audioEnabled) playBeep(440, 150);
     }
 
     function gameOver() {
-      if (isSoundOn) beep(100, 0.3);
-      showAd();
-      pipes = [];
-      fish.reset();
-      score = 0;
+      clearInterval(gameInterval);
+      gameInterval = null;
+      overlay.classList.remove("hidden");
+      gameOverScreen.classList.remove("hidden");
+      scoreBoard.classList.add("hidden");
+      pauseBtn.classList.add("hidden");
+      audioBtn.classList.add("hidden");
+      finalScoreText.textContent = "Score: " + score;
+      bestScore = Math.max(bestScore, score);
+      localStorage.setItem("bestScore", bestScore);
+      bestScoreText.textContent = "Best: " + bestScore;
+      if (audioEnabled) playBeep(220, 300);
+      showInterstitial();
     }
 
-    function showAd() {
-      document.getElementById("interstitial").style.display = "flex";
+    function togglePause() {
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? "Resume" : "Pause";
     }
 
-    function closeAd() {
-      document.getElementById("interstitial").style.display = "none";
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      audioBtn.textContent = audioEnabled ? "🔊" : "🔇";
     }
 
-    function loop() {
-      if (!isPaused) {
-        frames++;
-        drawBackground();
-        fish.update();
-        fish.draw();
-        updatePipes();
-        drawPipes();
-        drawScore();
-      }
-      requestAnimationFrame(loop);
+    function showInterstitial() {
+      interstitial.classList.remove("hidden");
     }
 
-    canvas.addEventListener("click", () => {
-      if (!isPaused) fish.flap();
+    function closeInterstitial() {
+      interstitial.classList.add("hidden");
+    }
+
+    function playBeep(frequency, duration) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      oscillator.start();
+      gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + duration/1000);
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.code === "Space") swim();
     });
+    canvas.addEventListener("mousedown", swim);
+    canvas.addEventListener("touchstart", swim);
 
-    function toggleSound() {
-      isSoundOn = !isSoundOn;
-      document.querySelector("#ui button").innerText = isSoundOn ? "🔊 Sound" : "🔇 Sound";
-    }
-
-    function pauseGame() {
-      isPaused = true;
-    }
-
-    function resumeGame() {
-      isPaused = false;
-    }
-
-    loop();
+    bestScore = parseInt(localStorage.getItem("bestScore")) || 0;
   </script>
 </body>
 </html>
