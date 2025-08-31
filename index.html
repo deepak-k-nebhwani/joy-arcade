@@ -1,308 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Flappy Fish</title>
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: linear-gradient(to bottom, #4facfe, #00f2fe);
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-    canvas {
-      background: #87CEEB;
-      display: block;
-      border: 2px solid #fff;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-    }
-    #overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: #fff;
-      text-shadow: 2px 2px 4px #000;
-      font-size: 2em;
-    }
-    .hidden {
-      display: none;
-    }
-    #scoreBoard {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 2em;
-      color: #fff;
-      text-shadow: 2px 2px 4px #000;
-    }
-    #pauseBtn, #audioBtn {
-      position: absolute;
-      top: 10px;
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 1em;
-    }
-    #pauseBtn {
-      left: 10px;
-    }
-    #audioBtn {
-      right: 10px;
-    }
-    #adBanner {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      height: 50px;
-      background: rgba(0,0,0,0.5);
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #interstitial {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      font-size: 2em;
-      z-index: 10;
-    }
-    #interstitial button {
-      margin-top: 20px;
-      padding: 10px 20px;
-      font-size: 1em;
-      cursor: pointer;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Flappy Fish – Free Browser Game</title>
+  <meta name="description" content="Flappy Fish: a fast, lightweight HTML5 canvas game. Tap/click to swim through coral gaps. Mobile-friendly, sound on/off, score & high score." />
+  <meta name="theme-color" content="#0ea5e9" />
+  <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
-  <canvas id="gameCanvas" width="320" height="480"></canvas>
-  
-  <div id="overlay">
-    <div id="startScreen">
-      <h1>Flappy Fish</h1>
-      <p>Click to Swim</p>
-      <button onclick="startGame()">Start</button>
-    </div>
-    <div id="gameOverScreen" class="hidden">
-      <h1>Game Over</h1>
-      <p id="finalScore"></p>
-      <p id="bestScore"></p>
-      <button onclick="startGame()">Restart</button>
+  <div class="frame" id="frame">
+    <canvas id="game" width="360" height="640" aria-label="Flappy Fish Game"></canvas>
+    <div class="hud">
+      <div class="topbar">
+        <div class="pill">
+          <span>🐟 Flappy Fish</span>
+        </div>
+        <div class="row">
+          <div class="pill score" id="scorePill">Score: 0</div>
+          <div class="pill" id="soundBtn" role="button" aria-pressed="false" title="Toggle sound">🔊</div>
+          <div class="pill btn" id="pauseBtn" role="button" aria-pressed="false" title="Pause/Resume">⏸️</div>
+        </div>
+      </div>
+      <div class="center" id="startOverlay">
+        <div class="card">
+          <h1>Tap to Swim</h1>
+          <p>Navigate through coral gaps. Touch, click, or press <strong>Space</strong>.</p>
+          <p class="tiny">Best: <span id="bestStart">0</span></p>
+          <a class="primary" id="playBtn">Play</a>
+          <a class="secondary" id="howBtn">How to Play</a>
+        </div>
+      </div>
+      <div class="center" id="howOverlay" style="display:none">
+        <div class="card">
+          <h1>How to Play</h1>
+          <p>• Tap/click/Space to swim up. Avoid coral.</p>
+          <p>• Pass a gap to score +1. Beat your best score!</p>
+          <p>• Works on mobile and desktop.</p>
+          <a class="primary" id="closeHow">Got it</a>
+        </div>
+      </div>
+      <div class="center" id="gameOverOverlay" style="display:none">
+        <div class="card">
+          <h1>Game Over</h1>
+          <p>Score: <strong id="finalScore">0</strong> &nbsp;•&nbsp; Best: <strong id="bestScore">0</strong></p>
+          <a class="primary" id="retryBtn">Play Again</a>
+          <a class="secondary" id="shareBtn">Share</a>
+        </div>
+      </div>
+      <div class="bottom">
+        <!-- 🧾 Ad Banner Placeholder: Replace this div with your AdSense banner code after approval. -->
+        <div class="ad-banner" id="adBanner">Ad banner placeholder (insert AdSense code here)</div>
+      </div>
+      <!-- Interstitial Placeholder (triggered every few fails) -->
+      <div class="interstitial" id="interstitial">
+        <div class="content">
+          <p>Interstitial Ad (placeholder)</p>
+          <p class="tiny">Replace with your AdSense/Ad network fullscreen unit.</p>
+          <a class="primary" id="closeInterstitial">Continue</a>
+        </div>
+      </div>
     </div>
   </div>
-  
-  <div id="scoreBoard" class="hidden">0</div>
-  
-  <button id="pauseBtn" class="hidden" onclick="togglePause()">Pause</button>
-  <button id="audioBtn" class="hidden" onclick="toggleAudio()">🔊</button>
-  
-  <div id="adBanner">Ad Banner Placeholder</div>
-  <div id="interstitial" class="hidden">
-    <div>Interstitial Ad</div>
-    <button onclick="closeInterstitial()">Close</button>
-  </div>
-  
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const overlay = document.getElementById("overlay");
-    const startScreen = document.getElementById("startScreen");
-    const gameOverScreen = document.getElementById("gameOverScreen");
-    const finalScoreText = document.getElementById("finalScore");
-    const bestScoreText = document.getElementById("bestScore");
-    const scoreBoard = document.getElementById("scoreBoard");
-    const pauseBtn = document.getElementById("pauseBtn");
-    const audioBtn = document.getElementById("audioBtn");
-    const interstitial = document.getElementById("interstitial");
-
-    let fish, pipes, score, bestScore = 0;
-    let gameInterval, gravity, isPaused, audioEnabled = true;
-    let bubbleParticles = [];
-
-    // DPR scaling
-    function resizeCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = 320 * dpr;
-      canvas.height = 480 * dpr;
-      canvas.style.width = "320px";
-      canvas.style.height = "480px";
-      ctx.scale(dpr, dpr);
-    }
-    resizeCanvas();
-
-    function startGame() {
-      fish = {
-        x: 50,
-        y: 150,
-        width: 30,
-        height: 30,
-        velocity: 0
-      };
-      pipes = [];
-      score = 0;
-      gravity = 0.5;
-      isPaused = false;
-      overlay.classList.add("hidden");
-      startScreen.classList.add("hidden");
-      gameOverScreen.classList.add("hidden");
-      scoreBoard.classList.remove("hidden");
-      pauseBtn.classList.remove("hidden");
-      audioBtn.classList.remove("hidden");
-      scoreBoard.textContent = score;
-      gameInterval = setInterval(update, 20);
-    }
-
-    function update() {
-      if (isPaused) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw background
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, "#4facfe");
-      gradient.addColorStop(1, "#00f2fe");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Fish physics
-      fish.velocity += gravity;
-      fish.y += fish.velocity;
-      if (fish.y + fish.height > canvas.height / (window.devicePixelRatio || 1)) {
-        gameOver();
-      }
-
-      // Fish drawing
-      ctx.fillStyle = "orange";
-      ctx.beginPath();
-      ctx.ellipse(fish.x, fish.y, fish.width/2, fish.height/2, 0, 0, Math.PI*2);
-      ctx.fill();
-
-      // Bubbles
-      if (Math.random() < 0.05) {
-        bubbleParticles.push({x: fish.x, y: fish.y, radius: 3, alpha: 1});
-      }
-      bubbleParticles.forEach(bubble => {
-        bubble.y -= 1;
-        bubble.alpha -= 0.01;
-        ctx.fillStyle = `rgba(255,255,255,${bubble.alpha})`;
-        ctx.beginPath();
-        ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI*2);
-        ctx.fill();
-      });
-      bubbleParticles = bubbleParticles.filter(b => b.alpha > 0);
-
-      // Pipes
-      if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width/2/(window.devicePixelRatio||1)) {
-        const gap = 100;
-        const topHeight = Math.random() * (canvas.height/(window.devicePixelRatio||1) - gap - 50) + 20;
-        pipes.push({
-          x: canvas.width/(window.devicePixelRatio||1),
-          topHeight: topHeight,
-          bottomY: topHeight + gap
-        });
-      }
-
-      pipes.forEach(pipe => {
-        pipe.x -= 2;
-        ctx.fillStyle = "green";
-        ctx.fillRect(pipe.x, 0, 40, pipe.topHeight);
-        ctx.fillRect(pipe.x, pipe.bottomY, 40, canvas.height/(window.devicePixelRatio||1) - pipe.bottomY);
-        if (fish.x < pipe.x + 40 && fish.x + fish.width > pipe.x &&
-            (fish.y < pipe.topHeight || fish.y + fish.height > pipe.bottomY)) {
-          gameOver();
-        }
-        if (!pipe.scored && pipe.x + 40 < fish.x) {
-          score++;
-          scoreBoard.textContent = score;
-          pipe.scored = true;
-          if (audioEnabled) playBeep(880, 150);
-        }
-      });
-      pipes = pipes.filter(p => p.x > -40);
-    }
-
-    function swim() {
-      if (!gameInterval) return;
-      fish.velocity = -8;
-      if (audioEnabled) playBeep(440, 150);
-    }
-
-    function gameOver() {
-      clearInterval(gameInterval);
-      gameInterval = null;
-      overlay.classList.remove("hidden");
-      gameOverScreen.classList.remove("hidden");
-      scoreBoard.classList.add("hidden");
-      pauseBtn.classList.add("hidden");
-      audioBtn.classList.add("hidden");
-      finalScoreText.textContent = "Score: " + score;
-      bestScore = Math.max(bestScore, score);
-      localStorage.setItem("bestScore", bestScore);
-      bestScoreText.textContent = "Best: " + bestScore;
-      if (audioEnabled) playBeep(220, 300);
-      showInterstitial();
-    }
-
-    function togglePause() {
-      isPaused = !isPaused;
-      pauseBtn.textContent = isPaused ? "Resume" : "Pause";
-    }
-
-    function toggleAudio() {
-      audioEnabled = !audioEnabled;
-      audioBtn.textContent = audioEnabled ? "🔊" : "🔇";
-    }
-
-    function showInterstitial() {
-      interstitial.classList.remove("hidden");
-    }
-
-    function closeInterstitial() {
-      interstitial.classList.add("hidden");
-    }
-
-    function playBeep(frequency, duration) {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      oscillator.start();
-      gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-      oscillator.stop(audioCtx.currentTime + duration/1000);
-    }
-
-    document.addEventListener("keydown", e => {
-      if (e.code === "Space") swim();
-    });
-    canvas.addEventListener("mousedown", swim);
-    canvas.addEventListener("touchstart", swim);
-
-    bestScore = parseInt(localStorage.getItem("bestScore")) || 0;
-  </script>
+  <script src="assets/game.js"></script>
 </body>
 </html>
